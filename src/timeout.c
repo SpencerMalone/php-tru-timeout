@@ -39,10 +39,23 @@ PHP_FUNCTION(enable_timeout) {
 
     pid_t childPID = fork();
     if (childPID==0) {
-        sleep(timeout);
+        long slept = 0;
+        int status;
+        int ppid = getppid();
+
+        while (slept < timeout) {
+            waitpid(ppid, &status, WNOHANG);
+            if (status == 0) {
+                sleep(1);
+                slept += 1;
+            } else if (WIFEXITED(status)) {
+                printf("Parent exited!\n");
+                exit(0);
+            }
+        }
         kill(getppid(), SIGTERM);
         kill(getppid(), SIGKILL);
-        _exit(0);
+        exit(0);
     } else {
         signal(SIGTERM, handle_exit); // This is needed to handle us being PID 1 in a containerized environment 
     }
