@@ -1,7 +1,7 @@
 <?php
 
-enable_timeout();
+enable_timeout(5);
 
-echo "sleeping for 3s\n";
-sleep(3);
+echo "sleeping for 2s\n";
+sleep(2);
 echo "should run\n";

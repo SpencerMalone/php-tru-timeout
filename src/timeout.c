@@ -31,9 +31,15 @@ void handle_exit(int sig)
   
 
 PHP_FUNCTION(enable_timeout) {
+    zend_long timeout;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &timeout) == FAILURE) {
+        RETURN_NULL();
+    }
+
     pid_t childPID = fork();
     if (childPID==0) {
-        sleep(5);
+        sleep(timeout);
         kill(getppid(), SIGTERM);
         kill(getppid(), SIGKILL);
         _exit(0);
