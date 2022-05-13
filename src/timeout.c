@@ -1,6 +1,8 @@
 #include <php.h>
 #include <signal.h>
+#include "zend_exceptions.h"
 #include "timeout.h"
+
 
 
 zend_function_entry trutimeout_functions[] = {
@@ -25,7 +27,9 @@ ZEND_GET_MODULE(trutimeout);
 
 void handle_exit(int sig)
 {
-    php_printf("Process timeout!\n");
+    // This doesn't work in an apache environment :(
+    // zend_throw_exception(NULL, "Process max execution time exceeded", 124);
+
     exit(124);
 }
   

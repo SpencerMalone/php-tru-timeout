@@ -1,0 +1,44 @@
+#!/bin/bash
+
+docker build -t test-php-tru-timeout .
+
+docker kill trutimeouttest || true
+
+rm /tmp/perf-test.log || true
+
+docker run --rm -d -p 8080:80 --name=trutimeouttest --entrypoint=docker-php-entrypoint test-php-tru-timeout apache2-foreground
+
+# Little's law says if we have 5 apache workers, and each request takes ~2.2 seconds, we need to request 2.2 times per second.
+
+max="2"
+date
+echo "url: localhost:8080/index.php
+rate: $max calls / second"
+START=$(date +%s);
+
+get () {
+  curl --max-time 5 -s -v "$1" 2>&1 | tr '\r\n' '\\n' | awk -v date="$(date +'%r')" '{print $0"\n-----", date}' >> /tmp/perf-test.log
+}
+
+count=0
+while true
+do
+  echo $(($(date +%s) - START)) | awk '{print int($1/60)":"int($1%60)}'
+  sleep 1
+
+  for i in `seq 1 $max`
+  do
+    get localhost:8080/index.php &
+  done
+  count=$(($count + 1))
+    if [ $count -gt 20 ]
+    then
+        break
+    fi
+done
+
+sleep 5
+
+docker kill trutimeouttest
+
+echo "Got  $(cat /tmp/perf-test.log | grep 'Operation timed out after' | wc -l) requests that timed out"
