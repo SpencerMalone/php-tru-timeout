@@ -3,9 +3,9 @@
 docker build -t test-php-tru-timeout .
 
 echo "This should take ~2 seconds and exit status 124"
-docker run --rm test-php-tru-timeout
+docker run --rm --entrypoint=time test-php-tru-timeout php /extension/test.php
 echo "Exit status: $?"
 
 echo "This should take ~2 seconds and exit status 0"
-docker run --rm test-php-tru-timeout /extension/nicetest.php
+docker run --rm --entrypoint=time test-php-tru-timeout php /extension/nicetest.php
 echo "Exit status: $?"

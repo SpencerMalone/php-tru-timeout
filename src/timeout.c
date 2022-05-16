@@ -1,8 +1,10 @@
 #include <php.h>
 #include <signal.h>
+#include <sys/time.h>
+#include <stdbool.h>
 #include "zend_exceptions.h"
+#include "zend_signal.h"
 #include "timeout.h"
-
 
 
 zend_function_entry trutimeout_functions[] = {
@@ -16,8 +18,8 @@ zend_module_entry trutimeout_module_entry = {
         trutimeout_functions,
         NULL,
         NULL,
-        NULL,
-        NULL,
+        PHP_RINIT(trutimeout),
+        PHP_RSHUTDOWN(trutimeout),
         NULL,
         PHP_TRUTIMEOUT_VERSION,
         STANDARD_MODULE_PROPERTIES,
@@ -25,42 +27,53 @@ zend_module_entry trutimeout_module_entry = {
 
 ZEND_GET_MODULE(trutimeout);
 
-void handle_exit(int sig)
-{
-    // This doesn't work in an apache environment :(
-    // zend_throw_exception(NULL, "Process max execution time exceeded", 124);
+zend_long seconds = 0;
+struct itimerval timeout_timer;
+bool timeout_enabled;
 
-    exit(124);
+void disable_timeout() {
+    if (timeout_enabled == true) {
+        timeout_enabled = false;
+        // Settime both values of it_value to 0 to disable the timer
+        timeout_timer.it_value.tv_sec = timeout_timer.it_value.tv_usec = timeout_timer.it_interval.tv_sec = timeout_timer.it_interval.tv_usec = 0;
+        setitimer(ITIMER_REAL, &timeout_timer, NULL);
+    }
 }
-  
+
+PHP_RSHUTDOWN_FUNCTION(trutimeout) {
+    disable_timeout();
+    return SUCCESS;
+}
+
+PHP_RINIT_FUNCTION(trutimeout) {
+    disable_timeout();
+    return SUCCESS;
+}
+
+void handle_timeout(int sig)
+{
+    disable_timeout();
+
+    char message[64];
+    sprintf(message, "Timeout of %ld seconds exceeded", seconds);
+    zend_throw_exception(NULL, message, 124);
+}
 
 PHP_FUNCTION(enable_timeout) {
-    zend_long timeout;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &timeout) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &seconds) == FAILURE) {
         RETURN_NULL();
     }
 
-    pid_t childPID = fork();
-    if (childPID==0) {
-        long slept = 0;
-        int status;
-        int ppid = getppid();
+    int signo;
 
-        while (slept < timeout) {
-            waitpid(ppid, &status, WNOHANG);
-            if (status == 0) {
-                sleep(1);
-                slept += 1;
-            } else if (WIFEXITED(status)) {
-                printf("Parent exited!\n");
-                exit(0);
-            }
-        }
-        kill(getppid(), SIGTERM);
-        kill(getppid(), SIGKILL);
-        exit(0);
-    } else {
-        signal(SIGTERM, handle_exit); // This is needed to handle us being PID 1 in a containerized environment 
+    timeout_timer.it_value.tv_sec = seconds;
+    timeout_timer.it_value.tv_usec = timeout_timer.it_interval.tv_sec = timeout_timer.it_interval.tv_usec = 0;
+
+    if (setitimer(ITIMER_REAL, &timeout_timer, NULL) == -1) {
+        perror("Issue creating max execution timer");
+        exit(1);
     }
+
+    signal(SIGALRM, handle_timeout); 
+    timeout_enabled = true;
 };

@@ -12,4 +12,4 @@ It's 2022, this exemption for non-windows systems is ridiculous.
 
 ### How does it work?
 
-First, it forks. After the fork, the parent process continues living a normal PHP life. Meanwhile, the child watches the execution time of the parent, and if it exceeds a set value, it kills the parent.
+The implementation is based off of PHP's source @ https://github.com/php/php-src/blob/da857c94a40bc1311d8598ddedc30b1d49419790/Zend/zend_execute_API.c#L1452-L1466. We use `setitimer` with the parameter `ITIMER_REAL` instead of `ITIMER_PROF`, and then handle the new signal `SIGALRM`.

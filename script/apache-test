@@ -8,7 +8,11 @@ rm /tmp/perf-test.log || true
 
 docker run --rm -d -p 8080:80 --name=trutimeouttest --entrypoint=docker-php-entrypoint test-php-tru-timeout apache2-foreground
 
-# Little's law says if we have 5 apache workers, and each request takes ~2.2 seconds, we need to request 2.2 times per second.
+# Little's law says if we have 5 apache workers, and each request takes ~2.2 seconds, we can safely request 2.27 times per second.
+# Change max to 3 to see this start to fail!
+
+echo "Pausing to let the server start up..."
+sleep 4
 
 max="2"
 date
@@ -39,6 +43,7 @@ done
 
 sleep 5
 
+docker logs trutimeouttest
 docker kill trutimeouttest
 
 echo "Got  $(cat /tmp/perf-test.log | grep 'Operation timed out after' | wc -l) requests that timed out"
