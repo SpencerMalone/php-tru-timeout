@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
 RUN wget -O phpunit https://phar.phpunit.de/phpunit-9.phar && \
     chmod +x phpunit && \
     mv phpunit /usr/local/bin/phpunit
+RUN docker-php-ext-configure pcntl --enable-pcntl && docker-php-ext-install pcntl
 ADD . /extension
 WORKDIR /extension
 RUN phpize && ./configure && make && make install

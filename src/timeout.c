@@ -16,7 +16,7 @@ zend_module_entry trutimeout_module_entry = {
             STANDARD_MODULE_HEADER,
         PHP_TRUTIMEOUT_EXTNAME,
         trutimeout_functions,
-        NULL,
+        PHP_MINIT(trutimeout),
         NULL,
         PHP_RINIT(trutimeout),
         PHP_RSHUTDOWN(trutimeout),
@@ -27,9 +27,23 @@ zend_module_entry trutimeout_module_entry = {
 
 ZEND_GET_MODULE(trutimeout);
 
+// Timeout exception creation
+static zend_class_entry *timeout_exception_ce;
+
+static zend_object *timeout_exception_create_object(zend_class_entry *ce) {
+    zend_object *obj = zend_ce_exception->create_object(ce);
+    zval obj_zv, rv, *trace;
+
+    return obj;
+}
+
+
+
 zend_long seconds = 0;
 struct itimerval timeout_timer;
 bool timeout_enabled;
+
+int my_pid;
 
 void disable_timeout() {
     if (timeout_enabled == true) {
@@ -40,29 +54,17 @@ void disable_timeout() {
     }
 }
 
-PHP_RSHUTDOWN_FUNCTION(trutimeout) {
-    disable_timeout();
-    return SUCCESS;
-}
-
-PHP_RINIT_FUNCTION(trutimeout) {
-    disable_timeout();
-    return SUCCESS;
-}
-
 void handle_timeout(int sig)
 {
     disable_timeout();
 
     char message[64];
     sprintf(message, "Timeout of %ld seconds exceeded", seconds);
-    zend_throw_exception(NULL, message, 124);
+    zend_throw_exception(timeout_exception_ce, message, 124);
 }
 
-PHP_FUNCTION(enable_timeout) {
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &seconds) == FAILURE) {
-        RETURN_NULL();
-    }
+void enable_timeout() {
+    my_pid = getpid();
 
     int signo;
 
@@ -76,4 +78,41 @@ PHP_FUNCTION(enable_timeout) {
 
     signal(SIGALRM, handle_timeout); 
     timeout_enabled = true;
+}
+
+PHP_FUNCTION(enable_timeout) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &seconds) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    enable_timeout();
 };
+
+
+PHP_MINIT_FUNCTION(trutimeout) {
+    timeout_exception_ce = register_class_TimeoutException(zend_ce_exception);
+    timeout_exception_ce->create_object = timeout_exception_create_object;
+
+    // Register signal handler
+    signal(SIGALRM, handle_timeout);
+    if (getpid() != my_pid && seconds > 0) {
+        printf("trutimeout_minit\n");
+        enable_timeout();
+    }
+    return SUCCESS;
+}
+
+PHP_RSHUTDOWN_FUNCTION(trutimeout) {
+    disable_timeout();
+    return SUCCESS;
+}
+
+PHP_RINIT_FUNCTION(trutimeout) {
+    if (getpid() != my_pid && seconds > 0) {
+        printf("trutimeout_rinit\n");
+        enable_timeout();
+        return SUCCESS;
+    }
+    disable_timeout();
+    return SUCCESS;
+}
