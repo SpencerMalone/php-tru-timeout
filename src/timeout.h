@@ -4,7 +4,8 @@
 PHP_MINIT_FUNCTION(trutimeout);
 PHP_RINIT_FUNCTION(trutimeout);
 PHP_RSHUTDOWN_FUNCTION(trutimeout);
-PHP_FUNCTION(enable_timeout);
+PHP_FUNCTION(enableTimeout);
+PHP_FUNCTION(getTimeUntilTimeout);
 
 static const zend_function_entry class_TimeoutException_methods[] = {
 	ZEND_FE_END

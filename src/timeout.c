@@ -8,7 +8,8 @@
 
 
 zend_function_entry trutimeout_functions[] = {
-            PHP_FE(enable_timeout, NULL)
+            PHP_FE(enableTimeout, NULL)
+            PHP_FE(getTimeUntilTimeout, NULL)
         PHP_FE_END
 };
 
@@ -80,12 +81,26 @@ void enable_timeout() {
     timeout_enabled = true;
 }
 
-PHP_FUNCTION(enable_timeout) {
+PHP_FUNCTION(enableTimeout) {
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &seconds) == FAILURE) {
         RETURN_NULL();
     }
 
     enable_timeout();
+};
+
+PHP_FUNCTION(getTimeUntilTimeout) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
+        RETURN_NULL();
+    }
+
+    if (timeout_enabled == true) {
+        struct itimerval cur_timer;
+        getitimer(ITIMER_REAL, &cur_timer);
+        RETURN_DOUBLE(cur_timer.it_value.tv_usec / 1000000.0 + cur_timer.it_value.tv_sec);
+    } else {
+        RETURN_DOUBLE(0);
+    }
 };
 
 

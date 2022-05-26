@@ -21,3 +21,15 @@ According to https://github.com/php/php-src/pull/6504#issuecomment-870986910, Ra
 > I wrote this initial code 25 years ago. At that time I couldn't use ITIMER_REAL because Apache used alarm() internally for timing out requests and I'd mess that up by catching the SIGALRM in PHP. SIGPROF had no such conflicts so that is why we have ITIMER_PROF today. I don't think modern Apache uses SIGALRM, so it should be possible now, but be careful of possible SAPIs that might live in an environment where you can't just steal SIGALRM.
 
 Outside of that, production use has not been tested, so this is still use at your own risk.
+
+### How do I use it?
+
+`enableTimeout(<int>)` to enable a timeout. Pass in `0` to disable timeouts.
+
+
+`getTimeUntilTimeout()` to get the time until timeout remaining as a double. Intended use case is if you short term wanted a lower timeout.
+
+### TODO
+
+- Make this a proper namespace'd class.
+- Document

@@ -8,7 +8,7 @@ final class TimeoutTest extends TestCase
     {
         $this->expectNotToPerformAssertions();
 
-        enable_timeout(2);
+        enableTimeout(2);
 
         sleep(1);
     }
@@ -18,7 +18,7 @@ final class TimeoutTest extends TestCase
         $this->expectExceptionMessage("Timeout of 1 seconds exceeded");
         $this->expectException(TimeoutException::class);
 
-        enable_timeout(1);
+        enableTimeout(1);
 
         sleep(2);
     }
@@ -27,9 +27,9 @@ final class TimeoutTest extends TestCase
     {
         $this->expectNotToPerformAssertions();
 
-        enable_timeout(2);
+        enableTimeout(2);
         sleep(1);
-        enable_timeout(0);
+        enableTimeout(0);
         sleep(2);
     }
 
@@ -37,7 +37,7 @@ final class TimeoutTest extends TestCase
     {
         $this->expectNotToPerformAssertions();
 
-        enable_timeout(1);
+        enableTimeout(1);
 
         try {
             sleep(2);
@@ -51,14 +51,14 @@ final class TimeoutTest extends TestCase
     // When we fork, the timeout will not be maintained on the child.
     public function testFork(): void
     {
-        enable_timeout(1);
+        enableTimeout(1);
 
         $pid = pcntl_fork();
 
         if ($pid == -1) {
             throw new Exception("fork failed");
         } elseif ($pid) {
-            enable_timeout(4);
+            enableTimeout(4);
             $status = 0;
             pcntl_waitpid($pid, $status);
             $exitcode = pcntl_wexitstatus($status);
@@ -72,21 +72,24 @@ final class TimeoutTest extends TestCase
 
     public function testForkWithTimeouts(): void
     {
-        enable_timeout(1);
+        enableTimeout(10);
 
         $pid = pcntl_fork();
 
         if ($pid == -1) {
             throw new Exception("fork failed");
         } elseif ($pid) {
-            enable_timeout(4);
             $status = 0;
             pcntl_waitpid($pid, $status);
             $exitcode = pcntl_wexitstatus($status);
-            $this->assertEquals(2, $exitcode);
+            $this->assertEquals(124, $exitcode);
         } else {
-            enable_timeout(1);
-            sleep(2);
+            enableTimeout(1);
+            try {
+                sleep(3);
+            } catch (TimeoutException $e) {
+                exit(124);
+            }
             exit(0);
         }
     }
@@ -98,12 +101,23 @@ final class TimeoutTest extends TestCase
 
     public function testStackTrace(): void
     {
-        enable_timeout(1);
+        enableTimeout(1);
 
         try {
             $this->recognizableStackTrace();
         } catch (Exception $e) {
             $this->assertStringContainsString('recognizableStackTrace', $e->getTraceAsString());
         }
+    }
+
+    public function testGetTimer(): void
+    {
+        enableTimeout(3);
+
+        // We're doing an extra long timeout here to handle the microsecond + second logic of getitimer
+        sleep(1);
+
+        $this->assertGreaterThan(1.99, getTimeUntilTimeout());
+        $this->assertLessThan(2.01, getTimeUntilTimeout());
     }
 }
